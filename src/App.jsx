@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import db from './db';
 import './App.css';
 
@@ -18,6 +18,17 @@ const ITINERARY = [
 ];
 
 const TAPE_STYLES = ['tape-top-left', 'tape-top-right', 'tape-both', 'tape-center'];
+
+const TAPE_COLORS = [
+  'rgba(224, 160, 48, 0.35)',   // gold
+  'rgba(45, 106, 79, 0.3)',     // jade green
+  'rgba(204, 85, 68, 0.3)',     // rose
+  'rgba(184, 200, 216, 0.4)',   // sky blue
+  'rgba(196, 101, 42, 0.3)',    // terracotta
+  'rgba(221, 184, 138, 0.4)',   // tan
+  'rgba(122, 26, 32, 0.25)',    // deep red
+  'rgba(240, 224, 106, 0.35)',  // yellow
+];
 
 // ── Helpers ────────────────────────────────────────────────
 function toDateKey(d) {
@@ -52,6 +63,11 @@ function getRotation(dateKey) {
 function getTapeStyle(dateKey) {
   const seed = dateKey.split('-').reduce((a, b) => a * parseInt(b), 1);
   return TAPE_STYLES[Math.abs(seed) % TAPE_STYLES.length];
+}
+
+function getTapeColor(dateKey) {
+  const seed = dateKey.split('-').reduce((a, b) => a + parseInt(b), 0);
+  return TAPE_COLORS[Math.abs(seed * 7) % TAPE_COLORS.length];
 }
 
 function formatDateLabel(dateKey) {
@@ -124,6 +140,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
   const dayNum = getDayNumber(dateKey);
   const rotation = getRotation(dateKey);
   const tapeClass = getTapeStyle(dateKey);
+  const tapeColor = getTapeColor(dateKey);
   const fileInputRef = useRef(null);
   const [captionInput, setCaptionInput] = useState('');
   const [showCaptionPrompt, setShowCaptionPrompt] = useState(false);
@@ -155,9 +172,13 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
   };
 
   // Filled slot
-  if (photo) {
+  if (photo && !showCaptionPrompt) {
+    const handleReplace = (e) => {
+      e.stopPropagation();
+      fileInputRef.current?.click();
+    };
     return (
-      <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg` }}
+      <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
         onClick={() => onView(photo)} role="button" tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onView(photo)}>
         <div className="polaroid">
@@ -166,7 +187,15 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
             <span className="photo-date">{formatDateLabel(dateKey)}</span>
             {photo.caption && <p className="photo-caption">{photo.caption}</p>}
           </div>
+          <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
         </div>
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          onChange={handleFileSelect} hidden />
       </div>
     );
   }
@@ -191,28 +220,208 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
 
   // Empty slot
   return (
-    <div className={`photo-slot empty ${isFuture ? 'future' : 'ready'}`}
-      style={{ '--rotation': `${rotation}deg` }}
+    <div className={`photo-slot empty ${isFuture ? 'future' : 'ready'} ${tapeClass}`}
+      style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
       onClick={() => !isFuture && fileInputRef.current?.click()}
       role={isFuture ? undefined : 'button'}
       tabIndex={isFuture ? undefined : 0}
       onKeyDown={(e) => !isFuture && e.key === 'Enter' && fileInputRef.current?.click()}>
-      <div className="empty-inner">
-        <svg className="mountain-icon" viewBox="0 0 40 40" width="40" height="40">
-          <path d="M5 35 L20 10 L35 35 Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-          <path d="M12 35 L22 20 L32 35" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" opacity="0.5"/>
-          <circle cx="30" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-        </svg>
-        <span className="empty-label">
-          {isFuture ? `Day ${dayNum} — awaiting adventure` : `Day ${dayNum} — tap to add`}
-        </span>
-        <span className="empty-date">{formatDateLabel(dateKey)}</span>
+      <div className="polaroid">
+        <div className="polaroid-image-area empty-image-area">
+          <div className="empty-inner">
+            <svg className="mountain-icon" viewBox="0 0 40 40" width="40" height="40">
+              <path d="M5 35 L20 10 L35 35 Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M12 35 L22 20 L32 35" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" opacity="0.5"/>
+              <circle cx="30" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+            <span className="empty-label">
+              {isFuture ? `Day ${dayNum} — awaiting adventure` : `Day ${dayNum} — tap to add`}
+            </span>
+          </div>
+        </div>
+        <div className="polaroid-footer">
+          <span className="photo-date">{formatDateLabel(dateKey)}</span>
+        </div>
       </div>
       {!isFuture && (
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
           onChange={handleFileSelect} hidden />
       )}
     </div>
+  );
+}
+
+// ── Peek Card (miniature polaroid on the sides) ──
+function PeekCard({ dateKey, photo }) {
+  const dayNum = getDayNumber(dateKey);
+  const rotation = getRotation(dateKey);
+  const tapeClass = getTapeStyle(dateKey);
+  const tapeColor = getTapeColor(dateKey);
+
+  return (
+    <div className={`peek-card ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}>
+      <div className="polaroid">
+        {photo ? (
+          <img src={photo.url} alt={`Day ${dayNum}`} />
+        ) : (
+          <div className="polaroid-image-area empty-image-area">
+            <div className="empty-inner">
+              <svg className="mountain-icon" viewBox="0 0 40 40" width="40" height="40">
+                <path d="M5 35 L20 10 L35 35 Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                <path d="M12 35 L22 20 L32 35" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" opacity="0.5"/>
+                <circle cx="30" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              <span className="empty-label">Day {dayNum}</span>
+            </div>
+          </div>
+        )}
+        <div className="polaroid-footer">
+          <span className="photo-date">{formatDateLabel(dateKey)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Day Carousel ───────────────────────────────────────────
+function DayCarousel({ dates, photos, onUpload, onView }) {
+  // Chronological order — left is past, right is future
+  const today = toDateKey(new Date());
+  const initialIndex = useMemo(() => {
+    const todayIdx = dates.findIndex((d) => d >= today);
+    return todayIdx >= 0 ? todayIdx : dates.length - 1;
+  }, [dates, today]);
+
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const touchStart = useRef({ x: 0, y: 0 });
+  const touchDelta = useRef(0);
+  const [dragging, setDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const containerRef = useRef(null);
+
+  const goTo = useCallback((idx) => {
+    setCurrentIndex(Math.max(0, Math.min(idx, dates.length - 1)));
+  }, [dates.length]);
+
+  const handleTouchStart = (e) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchDelta.current = 0;
+    setDragging(true);
+  };
+
+  const handleTouchMove = (e) => {
+    const dx = e.touches[0].clientX - touchStart.current.x;
+    const dy = e.touches[0].clientY - touchStart.current.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      e.preventDefault();
+      touchDelta.current = dx;
+      setDragOffset(dx);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setDragging(false);
+    setDragOffset(0);
+    const threshold = 50;
+    if (touchDelta.current < -threshold) {
+      goTo(currentIndex + 1); // swipe left → forward in time
+    } else if (touchDelta.current > threshold) {
+      goTo(currentIndex - 1); // swipe right → back in time
+    }
+    touchDelta.current = 0;
+  };
+
+  const mouseStart = useRef(null);
+  const handleMouseDown = (e) => {
+    mouseStart.current = e.clientX;
+    touchDelta.current = 0;
+    setDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (mouseStart.current === null) return;
+    const dx = e.clientX - mouseStart.current;
+    touchDelta.current = dx;
+    setDragOffset(dx);
+  };
+
+  const handleMouseUp = () => {
+    if (mouseStart.current === null) return;
+    setDragging(false);
+    setDragOffset(0);
+    const threshold = 50;
+    if (touchDelta.current < -threshold) {
+      goTo(currentIndex + 1);
+    } else if (touchDelta.current > threshold) {
+      goTo(currentIndex - 1);
+    }
+    mouseStart.current = null;
+    touchDelta.current = 0;
+  };
+
+  const currentDate = dates[currentIndex];
+  const prevDate = currentIndex > 0 ? dates[currentIndex - 1] : null;
+  const nextDate = currentIndex < dates.length - 1 ? dates[currentIndex + 1] : null;
+
+  return (
+    <section className="carousel-section">
+      <div
+        className="carousel-track-wrapper"
+        ref={containerRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={dragging ? handleMouseMove : undefined}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={dragging ? handleMouseUp : undefined}
+      >
+        <div className="carousel-track" style={{
+          transform: `translateX(${dragOffset}px)`,
+          transition: dragging ? 'none' : 'transform 0.3s ease',
+        }}>
+          {/* Left peek */}
+          <div className="carousel-peek">
+            {prevDate && <PeekCard dateKey={prevDate} photo={photos[prevDate] || null} />}
+          </div>
+
+          {/* Active card */}
+          <div className="carousel-slide-active">
+            <PhotoSlot dateKey={currentDate}
+              photo={photos[currentDate] || null}
+              onUpload={onUpload} onView={onView} />
+          </div>
+
+          {/* Right peek */}
+          <div className="carousel-peek">
+            {nextDate && <PeekCard dateKey={nextDate} photo={photos[nextDate] || null} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation — left = back, right = forward */}
+      <div className="carousel-nav">
+        <button
+          className="carousel-arrow"
+          onClick={() => goTo(currentIndex - 1)}
+          disabled={currentIndex === 0}
+          aria-label="Previous day"
+        >
+          <svg width="12" height="15" viewBox="0 0 14 18"><polygon points="14,0 0,9 14,18" fill="currentColor"/></svg>
+        </button>
+        <span className="carousel-indicator">
+          {getDayNumber(currentDate)} / {dates.length}
+        </span>
+        <button
+          className="carousel-arrow"
+          onClick={() => goTo(currentIndex + 1)}
+          disabled={currentIndex === dates.length - 1}
+          aria-label="Next day"
+        >
+          <svg width="12" height="15" viewBox="0 0 14 18"><polygon points="0,0 14,9 0,18" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -263,8 +472,6 @@ export default function App() {
     setPhotos((prev) => ({ ...prev, [dateKey]: { url, caption, blob: file } }));
   };
 
-  const sortedDates = [...allDates].reverse();
-
   return (
     <div className="app">
       <header className="header">
@@ -278,12 +485,7 @@ export default function App() {
 
       <MountainTrail progress={progress} filled={filledCount} total={totalDays} />
 
-      <section className="photo-feed">
-        {sortedDates.map((dateKey) => (
-          <PhotoSlot key={dateKey} dateKey={dateKey} photo={photos[dateKey] || null}
-            onUpload={handleUpload} onView={setViewerPhoto} />
-        ))}
-      </section>
+      <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} />
 
       <section className="itinerary">
         <h2 className="itinerary-title">Trip Itinerary</h2>

@@ -42,6 +42,7 @@
 }
 
 body {
+  overflow-x: hidden;
   font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--parchment);
   color: var(--volcanic-black);
@@ -138,12 +139,107 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* ── Photo Feed ─────────────────────────────────────────── */
-.photo-feed {
+/* ── Day Carousel ───────────────────────────────────────── */
+.carousel-section {
+  margin-bottom: 24px;
+  /* Break out of app padding to go edge-to-edge */
+  margin-left: -16px;
+  margin-right: -16px;
+  width: calc(100% + 32px);
+}
+
+.carousel-track-wrapper {
+  overflow: hidden;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.carousel-track-wrapper:active {
+  cursor: grabbing;
+}
+
+.carousel-track {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
-  margin-bottom: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.carousel-peek {
+  flex: 0 0 40px;
+  min-width: 40px;
+  pointer-events: none;
+  overflow: hidden;
+  position: relative;
+  align-self: center;
+}
+
+.peek-card {
+  opacity: 0.4;
+  /* Same width as the active card so it looks like a real card sliding in */
+  width: calc(100vw - 120px);
+  max-width: 448px;
+  transform: scale(0.95) scaleY(0.85);
+}
+
+/* Left peek: anchor card to the right so only its right edge is visible */
+.carousel-peek:first-child .peek-card {
+  float: right;
+}
+
+/* Right peek: anchor card to the left so only its left edge is visible */
+.carousel-peek:last-child .peek-card {
+  float: left;
+}
+
+.carousel-slide-active {
+  flex: 1;
+  min-width: 0;
+}
+
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.carousel-arrow {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--jade);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  line-height: 1;
+  padding: 0;
+}
+
+.carousel-arrow:hover:not(:disabled) {
+  opacity: 0.7;
+}
+
+.carousel-arrow:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.carousel-indicator {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--warm-gray);
+  letter-spacing: 0.04em;
+  min-width: 60px;
+  text-align: center;
 }
 
 /* ── Photo Slot (shared) ────────────────────────────────── */
@@ -204,80 +300,116 @@ body {
   opacity: 0.8;
 }
 
+/* ── Replace Photo Button ──────────────────────────────── */
+.polaroid {
+  position: relative;
+}
+
+.replace-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--warm-gray);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0.6;
+  z-index: 3;
+}
+
+.replace-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--jade);
+}
+
 /* ── Tape Decorations ───────────────────────────────────── */
 .photo-slot.filled::before,
-.photo-slot.filled::after {
+.photo-slot.filled::after,
+.photo-slot.empty::before,
+.photo-slot.empty::after {
   content: '';
   position: absolute;
-  width: 56px;
-  height: 20px;
-  background: rgba(224, 160, 48, 0.35);
+  width: 67px;
+  height: 24px;
+  background: var(--tape-color, rgba(224, 160, 48, 0.35));
   z-index: 2;
   pointer-events: none;
 }
 
-/* Top-left tape */
+/* Left tape: slightly varied per style for organic feel */
 .tape-top-left::before {
-  top: -5px;
-  left: 14px;
-  transform: rotate(-18deg);
+  top: -2px;
+  left: -14px;
+  transform: rotate(-48deg);
 }
-.tape-top-left::after { display: none; }
-
-/* Top-right tape */
 .tape-top-right::before {
-  top: -5px;
-  right: 14px;
-  left: auto;
-  transform: rotate(14deg);
+  top: -6px;
+  left: -10px;
+  transform: rotate(-36deg);
 }
-.tape-top-right::after { display: none; }
-
-/* Both corners */
 .tape-both::before {
-  top: -5px;
-  left: 14px;
-  transform: rotate(-18deg);
+  top: -3px;
+  left: -8px;
+  transform: rotate(-44deg);
 }
-.tape-both::after {
-  top: -5px;
-  right: 14px;
-  transform: rotate(16deg);
-}
-
-/* Center top tape */
 .tape-center::before {
   top: -7px;
-  left: 50%;
-  transform: translateX(-50%) rotate(-2deg);
-  width: 64px;
-  background: rgba(184, 200, 216, 0.45);
+  left: -12px;
+  transform: rotate(-40deg);
 }
-.tape-center::after { display: none; }
+
+/* Right tape: consistent diagonal */
+.tape-top-left::after,
+.tape-top-right::after,
+.tape-both::after,
+.tape-center::after {
+  top: -4px;
+  right: -12px;
+  left: auto;
+  transform: rotate(42deg);
+}
 
 /* ── Empty Slot ─────────────────────────────────────────── */
 .photo-slot.empty {
-  border: 2px dashed var(--parchment-dark);
-  border-radius: 12px;
-  padding: 28px 16px;
-  text-align: center;
-  background: var(--cream);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  position: relative;
 }
 
 .photo-slot.empty.ready {
   cursor: pointer;
-  border-color: var(--ocre);
-}
-
-.photo-slot.empty.ready:hover {
-  background: rgba(224, 160, 48, 0.06);
-  border-color: var(--highlight);
 }
 
 .photo-slot.empty.future {
   opacity: 0.45;
+}
+
+.empty-image-area {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(216, 144, 80, 0.08);
+  border: 2px dashed var(--parchment-dark);
+  border-radius: 2px;
+}
+
+.photo-slot.empty.ready .empty-image-area {
+  border-color: var(--ocre);
+}
+
+.photo-slot.empty.ready:hover .empty-image-area {
+  background: rgba(224, 160, 48, 0.1);
+  border-color: var(--highlight);
 }
 
 .empty-inner {
@@ -285,6 +417,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  padding: 16px;
 }
 
 .mountain-icon {
@@ -297,14 +430,7 @@ body {
   font-size: 0.9rem;
   color: var(--warm-gray);
   font-weight: 500;
-}
-
-.empty-date {
-  font-size: 0.75rem;
-  color: var(--warm-gray);
-  opacity: 0.6;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-align: center;
 }
 
 /* ── Caption Prompt ─────────────────────────────────────── */
@@ -503,5 +629,93 @@ body {
 
   .trail-svg {
     width: 180px;
+  }
+}
+
+/* ── Dark Mode ─────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --blanco: #1a1612;
+    --parchment: var(--blanco);
+    --parchment-dark: #2e2720;
+    --volcanic-black: #ede6db;
+    --cream: rgba(30, 25, 20, 0.7);
+    --warm-gray: #a89880;
+    --brown-dark: #d4c8b8;
+    --glow-warm: rgba(224, 160, 48, 0.08);
+    --jade: #40916c;
+    --jade-light: #52b788;
+    --terracotta: #e07b3a;
+    --highlight: #e8b040;
+    --accent: #a83030;
+    --accent-light: #d85545;
+  }
+
+  body {
+    background-image:
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  .title {
+    background: linear-gradient(135deg, var(--accent-light), var(--highlight), var(--terracotta));
+  }
+
+  .polaroid {
+    background: rgba(40, 34, 28, 0.8);
+    border-color: rgba(100, 85, 65, 0.25);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .trail-container,
+  .itinerary {
+    background: var(--cream);
+    border-color: rgba(100, 85, 65, 0.2);
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .photo-slot.empty .empty-image-area {
+    background: rgba(216, 144, 80, 0.06);
+    border-color: var(--parchment-dark);
+  }
+
+  .photo-slot.empty.ready .empty-image-area {
+    border-color: rgba(216, 144, 80, 0.3);
+  }
+
+  .caption-input {
+    background: #252018;
+    border-color: var(--parchment-dark);
+    color: var(--volcanic-black);
+  }
+
+  .btn-skip {
+    background: var(--parchment-dark);
+    color: var(--warm-gray);
+  }
+
+  .btn-skip:hover {
+    background: #3a322a;
+  }
+
+  .replace-btn {
+    background: rgba(30, 25, 20, 0.75);
+    color: var(--warm-gray);
+  }
+
+  .replace-btn:hover {
+    background: rgba(30, 25, 20, 0.9);
+    color: var(--jade);
+  }
+
+  .carousel-arrow {
+    color: var(--jade);
+  }
+
+  .itinerary-item {
+    border-bottom-color: var(--parchment-dark);
   }
 }
