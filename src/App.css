@@ -658,11 +658,14 @@ body {
 
   .title {
     background: linear-gradient(135deg, var(--accent-light), var(--highlight), var(--terracotta));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .polaroid {
     background: rgba(40, 34, 28, 0.8);
-    border-color: rgba(100, 85, 65, 0.25);
+    border-color: rgba(60, 50, 38, 0.4);
     box-shadow:
       0 4px 16px rgba(0, 0, 0, 0.25),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -671,7 +674,7 @@ body {
   .trail-container,
   .itinerary {
     background: var(--cream);
-    border-color: rgba(100, 85, 65, 0.2);
+    border-color: rgba(60, 50, 38, 0.35);
     box-shadow:
       0 4px 20px rgba(0, 0, 0, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -679,11 +682,11 @@ body {
 
   .photo-slot.empty .empty-image-area {
     background: rgba(216, 144, 80, 0.06);
-    border-color: var(--parchment-dark);
+    border-color: rgba(60, 50, 38, 0.4);
   }
 
   .photo-slot.empty.ready .empty-image-area {
-    border-color: rgba(216, 144, 80, 0.3);
+    border-color: rgba(216, 144, 80, 0.25);
   }
 
   .caption-input {
@@ -716,6 +719,10 @@ body {
   }
 
   .itinerary-item {
-    border-bottom-color: var(--parchment-dark);
+    border-bottom-color: rgba(60, 50, 38, 0.4);
+  }
+
+  .photo-slot.caption-prompt {
+    border-color: rgba(216, 144, 80, 0.3);
   }
 }
