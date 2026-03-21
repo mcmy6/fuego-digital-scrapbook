@@ -1,0 +1,507 @@
+/* ── Antigua Guatemala Colonial Palette ──────────────────── */
+:root {
+  --amarillo-tridentino: #e0a030;
+  --amarillo-merced: #ddb88a;
+  --amarillo-penastivo: #c8a87a;
+  --amarillo-jocotenango: #f0e06a;
+  --ocre: #d89050;
+  --rosa-concepcion: #cc5544;
+  --celeste-colonial: #b8c8d8;
+  --celeste-santiago: #8a9ab0;
+  --rojo-santo-domingo: #7a1a20;
+  --blanco: #faf9f6;
+
+  /* Restored originals */
+  --terracotta: #c4652a;
+  --terracotta-light: #e07b3a;
+  --jade: #2d6a4f;
+  --jade-light: #40916c;
+
+  /* Semantic mappings */
+  --parchment: var(--blanco);
+  --parchment-dark: #e5ddd0;
+  --volcanic-black: #2a1a10;
+  --accent: var(--rojo-santo-domingo);
+  --accent-light: var(--rosa-concepcion);
+  --warm: var(--ocre);
+  --warm-light: var(--amarillo-merced);
+  --highlight: var(--amarillo-tridentino);
+  --cool: var(--celeste-colonial);
+  --cool-dark: var(--celeste-santiago);
+  --cream: rgba(250, 249, 246, 0.65);
+  --warm-gray: #8a7e6e;
+  --brown-dark: #3d2e1f;
+  --glow-warm: rgba(224, 160, 48, 0.15);
+}
+
+/* ── Global Reset & Base ────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--parchment);
+  color: var(--volcanic-black);
+  min-height: 100vh;
+  /* Subtle warm stucco texture */
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App Container ──────────────────────────────────────── */
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  padding: 28px 0 16px;
+}
+
+.title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--rojo-santo-domingo), var(--rosa-concepcion), var(--amarillo-tridentino));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.15;
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+}
+
+.title-emoji {
+  -webkit-text-fill-color: initial;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+}
+
+.countdown {
+  font-size: 0.85rem;
+  color: var(--warm-gray);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.countdown strong {
+  color: var(--highlight);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* ── Mountain Trail Progress ────────────────────────────── */
+.trail-container {
+  background: var(--cream);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 168, 122, 0.2);
+  border-radius: 20px;
+  padding: 20px;
+  margin: 8px 0 24px;
+  box-shadow:
+    0 4px 20px var(--glow-warm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.trail-svg {
+  width: 140px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.trail-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.trail-count {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  color: var(--accent);
+  margin-top: 8px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── Photo Feed ─────────────────────────────────────────── */
+.photo-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+/* ── Photo Slot (shared) ────────────────────────────────── */
+.photo-slot {
+  transform: rotate(var(--rotation));
+  transition: transform 0.2s ease;
+}
+
+.photo-slot:hover {
+  transform: rotate(0deg) scale(1.01);
+}
+
+/* ── Polaroid (filled slot) ─────────────────────────────── */
+.photo-slot.filled {
+  cursor: pointer;
+  position: relative;
+}
+
+.polaroid {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 8px 8px 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(200, 168, 122, 0.2);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.polaroid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  border-radius: 2px;
+}
+
+.polaroid-footer {
+  padding: 8px 6px 8px;
+}
+
+.photo-date {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  color: var(--warm-gray);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.photo-caption {
+  font-size: 0.85rem;
+  color: var(--brown-dark);
+  margin-top: 4px;
+  font-style: italic;
+  line-height: 1.3;
+  opacity: 0.8;
+}
+
+/* ── Tape Decorations ───────────────────────────────────── */
+.photo-slot.filled::before,
+.photo-slot.filled::after {
+  content: '';
+  position: absolute;
+  width: 56px;
+  height: 20px;
+  background: rgba(224, 160, 48, 0.35);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Top-left tape */
+.tape-top-left::before {
+  top: -5px;
+  left: 14px;
+  transform: rotate(-18deg);
+}
+.tape-top-left::after { display: none; }
+
+/* Top-right tape */
+.tape-top-right::before {
+  top: -5px;
+  right: 14px;
+  left: auto;
+  transform: rotate(14deg);
+}
+.tape-top-right::after { display: none; }
+
+/* Both corners */
+.tape-both::before {
+  top: -5px;
+  left: 14px;
+  transform: rotate(-18deg);
+}
+.tape-both::after {
+  top: -5px;
+  right: 14px;
+  transform: rotate(16deg);
+}
+
+/* Center top tape */
+.tape-center::before {
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 64px;
+  background: rgba(184, 200, 216, 0.45);
+}
+.tape-center::after { display: none; }
+
+/* ── Empty Slot ─────────────────────────────────────────── */
+.photo-slot.empty {
+  border: 2px dashed var(--parchment-dark);
+  border-radius: 12px;
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--cream);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.photo-slot.empty.ready {
+  cursor: pointer;
+  border-color: var(--ocre);
+}
+
+.photo-slot.empty.ready:hover {
+  background: rgba(224, 160, 48, 0.06);
+  border-color: var(--highlight);
+}
+
+.photo-slot.empty.future {
+  opacity: 0.45;
+}
+
+.empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.mountain-icon {
+  color: var(--warm-gray);
+  opacity: 0.4;
+}
+
+.empty-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  color: var(--warm-gray);
+  font-weight: 500;
+}
+
+.empty-date {
+  font-size: 0.75rem;
+  color: var(--warm-gray);
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Caption Prompt ─────────────────────────────────────── */
+.photo-slot.caption-prompt {
+  background: var(--cream);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid var(--ocre);
+  border-radius: 16px;
+  padding: 24px 16px;
+  box-shadow: 0 4px 20px var(--glow-warm);
+}
+
+.caption-prompt-inner {
+  text-align: center;
+}
+
+.caption-prompt-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brown-dark);
+  margin-bottom: 12px;
+}
+
+.caption-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--parchment-dark);
+  border-radius: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  background: #fff;
+  color: var(--volcanic-black);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.caption-input:focus {
+  border-color: var(--highlight);
+}
+
+.caption-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.btn-skip,
+.btn-save {
+  padding: 8px 24px;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.btn-skip {
+  background: var(--parchment-dark);
+  color: var(--warm-gray);
+}
+
+.btn-skip:hover {
+  background: #d5cdc0;
+}
+
+.btn-save {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-save:hover {
+  background: var(--accent-light);
+}
+
+/* ── Fullscreen Viewer ──────────────────────────────────── */
+.fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 26, 16, 0.94);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.fullscreen-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 1001;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.fullscreen-close:hover {
+  opacity: 1;
+}
+
+.fullscreen-img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+.fullscreen-caption {
+  color: #fff;
+  font-size: 0.9rem;
+  margin-top: 16px;
+  text-align: center;
+  opacity: 0.85;
+  max-width: 400px;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ── Itinerary ──────────────────────────────────────────── */
+.itinerary {
+  background: var(--cream);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 168, 122, 0.2);
+  border-radius: 20px;
+  padding: 24px 20px;
+  box-shadow:
+    0 4px 20px var(--glow-warm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.itinerary-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 16px;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.itinerary-list {
+  list-style: none;
+}
+
+.itinerary-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--parchment-dark);
+  align-items: baseline;
+}
+
+.itinerary-item:last-child {
+  border-bottom: none;
+}
+
+.itinerary-date {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--highlight);
+  min-width: 72px;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.itinerary-label {
+  font-size: 0.85rem;
+  color: var(--brown-dark);
+  font-weight: 400;
+}
+
+/* ── Desktop adjustments ────────────────────────────────── */
+@media (min-width: 600px) {
+  .app {
+    max-width: 520px;
+    padding: 32px 24px 80px;
+  }
+
+  .title {
+    font-size: 2.4rem;
+  }
+
+  .trail-svg {
+    width: 180px;
+  }
+}
