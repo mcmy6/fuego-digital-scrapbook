@@ -3,8 +3,8 @@ import db from './db';
 import './App.css';
 
 // ── Constants ──────────────────────────────────────────────
-const SUMMIT_DAY = new Date('2026-04-15');
-const TRIP_END = new Date('2026-04-18');
+const SUMMIT_DAY = new Date('2026-04-14');
+const TRIP_END = new Date('2026-04-14');
 const START_DATE = new Date('2026-03-21');
 
 const ITINERARY = [
@@ -77,11 +77,12 @@ function formatDateLabel(dateKey) {
 
 function getDayNumber(dateKey) {
   const d = new Date(dateKey + 'T12:00:00');
-  return getDaysBetween(START_DATE, d) + 1;
+  const start = new Date(toDateKey(START_DATE) + 'T12:00:00');
+  return getDaysBetween(start, d) + 1;
 }
 
 // ── Mountain Trail SVG ─────────────────────────────────────
-function MountainTrail({ progress, filled, total }) {
+function MountainTrail({ progress, filled, total, daysUntilSummit }) {
   const trailPath = "M 30 280 Q 60 260 50 240 Q 35 220 65 200 Q 90 185 75 160 Q 55 140 80 120 Q 100 105 90 85 Q 75 65 100 50 Q 120 38 130 20";
   const pathLength = 420;
   const hikerOffset = progress * pathLength;
@@ -128,7 +129,7 @@ function MountainTrail({ progress, filled, total }) {
           <polygon points="145,180 149,170 153,180" />
         </g>
       </svg>
-      <p className="trail-count">{filled} of {total} days logged</p>
+      <p className="trail-count">{daysUntilSummit > 0 ? `${daysUntilSummit} days until summit` : 'Summit day has arrived!'}</p>
     </div>
   );
 }
@@ -185,6 +186,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
 
   // Filled slot
   if (photo && !promptStep) {
+    const isToday = dateKey === today;
     const handleReplace = (e) => {
       e.stopPropagation();
       fileInputRef.current?.click();
@@ -199,15 +201,19 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
             <span className="photo-date">{formatDateLabel(dateKey)}</span>
             {photo.caption && <p className="photo-caption">{photo.caption}</p>}
           </div>
-          <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </button>
+          {isToday && (
+            <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          )}
         </div>
-        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-          onChange={handleFileSelect} hidden />
+        {isToday && (
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+            onChange={handleFileSelect} hidden />
+        )}
       </div>
     );
   }
@@ -243,6 +249,27 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
           <div className="caption-buttons">
             <button onClick={handleSkipNotes} className="btn-skip">Skip</button>
             <button onClick={handleSave} className="btn-save">Save</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Missed day (past, no photo, not today)
+  const isPast = dateKey < today;
+  if (isPast && !photo) {
+    return (
+      <div className={`photo-slot empty missed ${tapeClass}`}
+        style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}>
+        <div className="polaroid">
+          <div className="polaroid-image-area empty-image-area missed-area">
+            <div className="empty-inner">
+              <span style={{ fontSize: '2rem' }}>😢</span>
+              <span className="empty-label">The summit missed you on {formatDateLabel(dateKey)}</span>
+            </div>
+          </div>
+          <div className="polaroid-footer">
+            <span className="photo-date">{formatDateLabel(dateKey)}</span>
           </div>
         </div>
       </div>
@@ -441,7 +468,7 @@ function DayCarousel({ dates, photos, onUpload, onView }) {
           <svg width="12" height="15" viewBox="0 0 14 18"><polygon points="14,0 0,9 14,18" fill="currentColor"/></svg>
         </button>
         <span className="carousel-indicator">
-          {getDayNumber(currentDate)} / {dates.length}
+          Day {getDayNumber(currentDate)} of {dates.length}
         </span>
         <button
           className="carousel-arrow"
@@ -466,8 +493,25 @@ function formatStickyDate(dateKey) {
   return `${mm}.${dd}.${yy}`;
 }
 
-function FullscreenViewer({ photo, onClose }) {
+function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
+  const [editing, setEditing] = useState(false);
+  const [notesInput, setNotesInput] = useState('');
+  const today = toDateKey(new Date());
+  const isToday = photo?.dateKey === today;
+
   if (!photo) return null;
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    setNotesInput(photo.notes || '');
+    setEditing(true);
+  };
+
+  const handleSaveNotes = () => {
+    onUpdateNotes(photo.dateKey, notesInput.trim());
+    setEditing(false);
+  };
+
   return (
     <div className="fullscreen-overlay" onClick={onClose}>
       <button className="fullscreen-close" onClick={onClose} aria-label="Close">&times;</button>
@@ -476,10 +520,27 @@ function FullscreenViewer({ photo, onClose }) {
           <img src={photo.url} alt="Full view" className="fullscreen-img" />
           {photo.caption && <p className="fullscreen-caption">{photo.caption}</p>}
         </div>
-        <div className="sticky-note">
+        <div className={`sticky-note ${isToday ? 'editable' : ''}`} onClick={isToday && !editing ? handleEditClick : undefined}>
           <div className="sticky-tape" />
           <span className="sticky-date">{formatStickyDate(photo.dateKey)}</span>
-          <p className="sticky-text">{photo.notes || '\u00A0'}</p>
+          {editing ? (
+            <div className="sticky-edit">
+              <textarea
+                value={notesInput}
+                onChange={(e) => setNotesInput(e.target.value)}
+                maxLength={150}
+                placeholder="Write a note..."
+                className="sticky-textarea"
+                autoFocus
+                rows={3}
+              />
+              <button className="sticky-save-btn" onClick={handleSaveNotes}>Save</button>
+            </div>
+          ) : (
+            <p className="sticky-text">
+              {photo.notes || (isToday ? 'Tap to add a note...' : '\u00A0')}
+            </p>
+          )}
           <div className="sticky-fold" />
         </div>
       </div>
@@ -522,18 +583,21 @@ export default function App() {
     setPhotos((prev) => ({ ...prev, [dateKey]: { url, caption, notes, blob: file, dateKey } }));
   };
 
+  const handleUpdateNotes = async (dateKey, notes) => {
+    const existing = photos[dateKey];
+    if (!existing) return;
+    await db.photos.put({ date: dateKey, caption: existing.caption, notes, blob: existing.blob });
+    setPhotos((prev) => ({ ...prev, [dateKey]: { ...prev[dateKey], notes } }));
+    setViewerPhoto((prev) => prev ? { ...prev, notes } : null);
+  };
+
   return (
     <div className="app">
       <header className="header">
         <h1 className="title">Road to Acatenango <span className="title-emoji">🌋</span></h1>
-        <p className="countdown">
-          {daysUntilSummit > 0
-            ? <><strong>{daysUntilSummit}</strong> days until summit day</>
-            : 'Summit day has arrived!'}
-        </p>
       </header>
 
-      <MountainTrail progress={progress} filled={filledCount} total={totalDays} />
+      <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
 
       <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} />
 
@@ -549,7 +613,7 @@ export default function App() {
         </ul>
       </section>
 
-      <FullscreenViewer photo={viewerPhoto} onClose={() => setViewerPhoto(null)} />
+      <FullscreenViewer photo={viewerPhoto} onClose={() => setViewerPhoto(null)} onUpdateNotes={handleUpdateNotes} />
     </div>
   );
 }
