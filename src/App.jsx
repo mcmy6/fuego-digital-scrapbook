@@ -143,44 +143,56 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
   const tapeColor = getTapeColor(dateKey);
   const fileInputRef = useRef(null);
   const [captionInput, setCaptionInput] = useState('');
-  const [showCaptionPrompt, setShowCaptionPrompt] = useState(false);
+  const [notesInput, setNotesInput] = useState('');
+  const [promptStep, setPromptStep] = useState(null); // null | 'caption' | 'notes'
   const pendingFile = useRef(null);
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     pendingFile.current = file;
-    setShowCaptionPrompt(true);
+    setPromptStep('caption');
+  };
+
+  const handleCaptionNext = () => {
+    setPromptStep('notes');
+  };
+
+  const handleSkipCaption = () => {
+    setCaptionInput('');
+    setPromptStep('notes');
   };
 
   const handleSave = () => {
     if (pendingFile.current) {
-      onUpload(dateKey, pendingFile.current, captionInput.trim());
+      onUpload(dateKey, pendingFile.current, captionInput.trim(), notesInput.trim());
       pendingFile.current = null;
       setCaptionInput('');
-      setShowCaptionPrompt(false);
+      setNotesInput('');
+      setPromptStep(null);
     }
   };
 
-  const handleSkipCaption = () => {
+  const handleSkipNotes = () => {
     if (pendingFile.current) {
-      onUpload(dateKey, pendingFile.current, '');
+      onUpload(dateKey, pendingFile.current, captionInput.trim(), '');
       pendingFile.current = null;
       setCaptionInput('');
-      setShowCaptionPrompt(false);
+      setNotesInput('');
+      setPromptStep(null);
     }
   };
 
   // Filled slot
-  if (photo && !showCaptionPrompt) {
+  if (photo && !promptStep) {
     const handleReplace = (e) => {
       e.stopPropagation();
       fileInputRef.current?.click();
     };
     return (
       <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
-        onClick={() => onView(photo)} role="button" tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onView(photo)}>
+        onClick={() => onView({ ...photo, dateKey })} role="button" tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && onView({ ...photo, dateKey })}>
         <div className="polaroid">
           <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
           <div className="polaroid-footer">
@@ -200,8 +212,8 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
     );
   }
 
-  // Caption prompt
-  if (showCaptionPrompt) {
+  // Caption prompt (step 1)
+  if (promptStep === 'caption') {
     return (
       <div className="photo-slot caption-prompt" style={{ '--rotation': '0deg' }}>
         <div className="caption-prompt-inner">
@@ -211,6 +223,25 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
             placeholder="What's the story?" className="caption-input" autoFocus />
           <div className="caption-buttons">
             <button onClick={handleSkipCaption} className="btn-skip">Skip</button>
+            <button onClick={handleCaptionNext} className="btn-save">Next</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Notes prompt (step 2)
+  if (promptStep === 'notes') {
+    return (
+      <div className="photo-slot caption-prompt" style={{ '--rotation': '0deg' }}>
+        <div className="caption-prompt-inner">
+          <p className="caption-prompt-title">Any notes? (optional)</p>
+          <textarea maxLength={150} value={notesInput}
+            onChange={(e) => setNotesInput(e.target.value)}
+            placeholder="Thoughts, feelings, details..."
+            className="caption-input notes-textarea" autoFocus rows={3} />
+          <div className="caption-buttons">
+            <button onClick={handleSkipNotes} className="btn-skip">Skip</button>
             <button onClick={handleSave} className="btn-save">Save</button>
           </div>
         </div>
@@ -426,13 +457,32 @@ function DayCarousel({ dates, photos, onUpload, onView }) {
 }
 
 // ── Fullscreen Viewer ──────────────────────────────────────
+function formatStickyDate(dateKey) {
+  if (!dateKey) return '';
+  const d = new Date(dateKey + 'T12:00:00');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${mm}.${dd}.${yy}`;
+}
+
 function FullscreenViewer({ photo, onClose }) {
   if (!photo) return null;
   return (
     <div className="fullscreen-overlay" onClick={onClose}>
       <button className="fullscreen-close" onClick={onClose} aria-label="Close">&times;</button>
-      <img src={photo.url} alt="Full view" className="fullscreen-img" />
-      {photo.caption && <p className="fullscreen-caption">{photo.caption}</p>}
+      <div className="fullscreen-content" onClick={(e) => e.stopPropagation()}>
+        <div className="fullscreen-polaroid">
+          <img src={photo.url} alt="Full view" className="fullscreen-img" />
+          {photo.caption && <p className="fullscreen-caption">{photo.caption}</p>}
+        </div>
+        <div className="sticky-note">
+          <div className="sticky-tape" />
+          <span className="sticky-date">{formatStickyDate(photo.dateKey)}</span>
+          <p className="sticky-text">{photo.notes || '\u00A0'}</p>
+          <div className="sticky-fold" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -456,7 +506,7 @@ export default function App() {
       const map = {};
       for (const entry of all) {
         const url = URL.createObjectURL(entry.blob);
-        map[entry.date] = { url, caption: entry.caption, blob: entry.blob };
+        map[entry.date] = { url, caption: entry.caption, notes: entry.notes || '', blob: entry.blob, dateKey: entry.date };
       }
       setPhotos(map);
     }
@@ -466,10 +516,10 @@ export default function App() {
   const filledCount = Object.keys(photos).length;
   const progress = totalDays > 0 ? filledCount / totalDays : 0;
 
-  const handleUpload = async (dateKey, file, caption) => {
-    await db.photos.put({ date: dateKey, caption, blob: file });
+  const handleUpload = async (dateKey, file, caption, notes = '') => {
+    await db.photos.put({ date: dateKey, caption, notes, blob: file });
     const url = URL.createObjectURL(file);
-    setPhotos((prev) => ({ ...prev, [dateKey]: { url, caption, blob: file } }));
+    setPhotos((prev) => ({ ...prev, [dateKey]: { url, caption, notes, blob: file, dateKey } }));
   };
 
   return (

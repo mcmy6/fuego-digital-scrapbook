@@ -511,6 +511,13 @@ body {
   background: var(--accent-light);
 }
 
+/* ── Notes Textarea ─────────────────────────────────────── */
+.notes-textarea {
+  resize: none;
+  font-family: 'Space Grotesk', sans-serif;
+  line-height: 1.4;
+}
+
 /* ── Fullscreen Viewer ──────────────────────────────────── */
 .fullscreen-overlay {
   position: fixed;
@@ -543,23 +550,101 @@ body {
   opacity: 1;
 }
 
-.fullscreen-img {
-  max-width: 100%;
-  max-height: 80vh;
-  object-fit: contain;
+.fullscreen-content {
+  position: relative;
+  display: inline-block;
+  max-width: 90vw;
+  cursor: default;
+}
+
+.fullscreen-polaroid {
+  background: #fff;
+  padding: 10px 10px 6px;
   border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
 }
 
+.fullscreen-img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  display: block;
+  border-radius: 2px;
+}
+
 .fullscreen-caption {
-  color: #fff;
-  font-size: 0.9rem;
-  margin-top: 16px;
-  text-align: center;
-  opacity: 0.85;
-  max-width: 400px;
+  color: #5a4e3e;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  padding: 0 4px 6px;
+  text-align: left;
   font-weight: 400;
   font-style: italic;
+}
+
+/* ── Sticky Note ───────────────────────────────────────── */
+.sticky-note {
+  position: absolute;
+  bottom: -20px;
+  right: -10px;
+  width: 140px;
+  height: 140px;
+  background: #F5EDE0;
+  padding: 18px 14px 14px;
+  border-radius: 2px;
+  transform: rotate(2.5deg);
+  box-shadow: 2px 3px 12px rgba(0, 0, 0, 0.25);
+  animation: stickyIn 0.4s ease-out both;
+}
+
+@keyframes stickyIn {
+  from {
+    opacity: 0;
+    transform: rotate(2.5deg) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(2.5deg) translateY(0);
+  }
+}
+
+.sticky-tape {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-4deg);
+  width: 52px;
+  height: 16px;
+  background: rgba(224, 160, 48, 0.35);
+  pointer-events: none;
+}
+
+.sticky-date {
+  font-size: 0.75rem;
+  color: #9a8e7e;
+  display: block;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+
+.sticky-text {
+  font-size: 0.85rem;
+  color: #5A4E3E;
+  line-height: 1.35;
+  word-break: break-word;
+  font-style: italic;
+  min-height: 1.4em;
+}
+
+.sticky-fold {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, #F5EDE0 45%, #e0d5c5 50%, #d8ccba 100%);
+  border-radius: 0 0 0 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 /* ── Itinerary ──────────────────────────────────────────── */
