@@ -1,6 +1,28 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import db from './db';
+import { supabase } from './supabase';
 import './App.css';
+
+const UPLOAD_PIN = '1414';
+const VIEW_PIN = '1414';
+
+// ── Strip EXIF by re-drawing image on canvas ───────────────
+function stripExif(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.9);
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 // ── Constants ──────────────────────────────────────────────
 const SUMMIT_DAY = new Date('2026-04-14');
@@ -151,6 +173,12 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const pin = window.prompt('Enter upload PIN:');
+    if (pin !== UPLOAD_PIN) {
+      window.alert('Incorrect PIN');
+      e.target.value = '';
+      return;
+    }
     pendingFile.current = file;
     setPromptStep('caption');
   };
@@ -547,6 +575,47 @@ function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
   );
 }
 
+// ── Access Gate ──────────────────────────────────────────────
+function AccessGate({ children }) {
+  const [authorized, setAuthorized] = useState(() => sessionStorage.getItem('scrapbook_auth') === 'true');
+  const [pinInput, setPinInput] = useState('');
+  const [error, setError] = useState(false);
+
+  if (authorized) return children;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (pinInput === VIEW_PIN) {
+      sessionStorage.setItem('scrapbook_auth', 'true');
+      setAuthorized(true);
+    } else {
+      setError(true);
+      setPinInput('');
+    }
+  };
+
+  return (
+    <div className="access-gate">
+      <div className="access-card">
+        <h1 className="access-title">Road to Acatenango <span>🌋</span></h1>
+        <p className="access-subtitle">Enter the code to view this scrapbook</p>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            value={pinInput}
+            onChange={(e) => { setPinInput(e.target.value); setError(false); }}
+            placeholder="Enter code"
+            className="access-input"
+            autoFocus
+          />
+          {error && <p className="access-error">Incorrect code</p>}
+          <button type="submit" className="access-btn">Enter</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ───────────────────────────────────────────────
 export default function App() {
   const [photos, setPhotos] = useState({});
@@ -564,14 +633,15 @@ export default function App() {
   const elapsed = getDaysBetween(startNoon, todayNoon);
   const daysUntilSummit = Math.max(0, totalTripDays - elapsed);
 
-  // Load photos from IndexedDB
+  // Load photos from Supabase
   useEffect(() => {
     async function load() {
-      const all = await db.photos.toArray();
+      const { data, error } = await supabase.from('photos').select('*');
+      if (error) { console.error('Failed to load photos:', error); return; }
       const map = {};
-      for (const entry of all) {
-        const url = URL.createObjectURL(entry.blob);
-        map[entry.date] = { url, caption: entry.caption, notes: entry.notes || '', blob: entry.blob, dateKey: entry.date };
+      for (const entry of data) {
+        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(entry.image_path);
+        map[entry.date] = { url: publicUrl, caption: entry.caption || '', notes: entry.notes || '', dateKey: entry.date };
       }
       setPhotos(map);
     }
@@ -582,42 +652,55 @@ export default function App() {
   const progress = totalDays > 0 ? filledCount / totalDays : 0;
 
   const handleUpload = async (dateKey, file, caption, notes = '') => {
-    await db.photos.put({ date: dateKey, caption, notes, blob: file });
-    const url = URL.createObjectURL(file);
-    setPhotos((prev) => ({ ...prev, [dateKey]: { url, caption, notes, blob: file, dateKey } }));
+    const cleanFile = await stripExif(file);
+    const path = `${dateKey}.jpg`;
+
+    // Upload image to storage (upsert)
+    const { error: storageError } = await supabase.storage.from('photos').upload(path, cleanFile, { upsert: true });
+    if (storageError) { console.error('Upload failed:', storageError); return; }
+
+    // Upsert row in photos table
+    const { error: dbError } = await supabase.from('photos').upsert({ date: dateKey, caption, notes, image_path: path }, { onConflict: 'date' });
+    if (dbError) { console.error('DB insert failed:', dbError); return; }
+
+    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
+    setPhotos((prev) => ({ ...prev, [dateKey]: { url: publicUrl, caption, notes, dateKey } }));
   };
 
   const handleUpdateNotes = async (dateKey, notes) => {
     const existing = photos[dateKey];
     if (!existing) return;
-    await db.photos.put({ date: dateKey, caption: existing.caption, notes, blob: existing.blob });
+    const { error } = await supabase.from('photos').update({ notes }).eq('date', dateKey);
+    if (error) { console.error('Update notes failed:', error); return; }
     setPhotos((prev) => ({ ...prev, [dateKey]: { ...prev[dateKey], notes } }));
     setViewerPhoto((prev) => prev ? { ...prev, notes } : null);
   };
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1 className="title">Road to Acatenango <span className="title-emoji">🌋</span></h1>
-      </header>
+    <AccessGate>
+      <div className="app">
+        <header className="header">
+          <h1 className="title">Road to Acatenango <span className="title-emoji">🌋</span></h1>
+        </header>
 
-      <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
+        <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
 
-      <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} />
+        <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} />
 
-      <section className="itinerary">
-        <h2 className="itinerary-title">Trip Itinerary</h2>
-        <ul className="itinerary-list">
-          {ITINERARY.map((item) => (
-            <li key={item.date} className="itinerary-item">
-              <span className="itinerary-date">{item.date}</span>
-              <span className="itinerary-label">{item.label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <section className="itinerary">
+          <h2 className="itinerary-title">Trip Itinerary</h2>
+          <ul className="itinerary-list">
+            {ITINERARY.map((item) => (
+              <li key={item.date} className="itinerary-item">
+                <span className="itinerary-date">{item.date}</span>
+                <span className="itinerary-label">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <FullscreenViewer photo={viewerPhoto} onClose={() => setViewerPhoto(null)} onUpdateNotes={handleUpdateNotes} />
-    </div>
+        <FullscreenViewer photo={viewerPhoto} onClose={() => setViewerPhoto(null)} onUpdateNotes={handleUpdateNotes} />
+      </div>
+    </AccessGate>
   );
 }

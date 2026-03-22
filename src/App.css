@@ -751,6 +751,96 @@ body {
   font-weight: 400;
 }
 
+/* ── Access Gate ───────────────────────────────────────── */
+.access-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.access-card {
+  background: var(--cream);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 168, 122, 0.2);
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+  box-shadow:
+    0 4px 20px var(--glow-warm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.access-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--rojo-santo-domingo), var(--rosa-concepcion), var(--amarillo-tridentino));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.access-title span {
+  -webkit-text-fill-color: initial;
+}
+
+.access-subtitle {
+  font-size: 0.85rem;
+  color: var(--warm-gray);
+  margin-bottom: 20px;
+}
+
+.access-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--parchment-dark);
+  border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  text-align: center;
+  background: #fff;
+  color: var(--volcanic-black);
+  outline: none;
+  transition: border-color 0.2s;
+  letter-spacing: 0.1em;
+}
+
+.access-input:focus {
+  border-color: var(--highlight);
+}
+
+.access-error {
+  color: var(--accent);
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+
+.access-btn {
+  margin-top: 16px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.access-btn:hover {
+  background: var(--accent-light);
+}
+
 /* ── Desktop adjustments ────────────────────────────────── */
 @media (min-width: 600px) {
   .app {
