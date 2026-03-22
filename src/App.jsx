@@ -198,8 +198,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
         <div className="polaroid">
           <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
           <div className="polaroid-footer">
-            <span className="photo-date">{formatDateLabel(dateKey)}</span>
-            {photo.caption && <p className="photo-caption">{photo.caption}</p>}
+            <p className="photo-caption">{photo.caption || 'Add a caption'}</p>
           </div>
           {isToday && (
             <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
@@ -269,7 +268,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
             </div>
           </div>
           <div className="polaroid-footer">
-            <span className="photo-date">{formatDateLabel(dateKey)}</span>
+            <p className="photo-caption">Add a caption</p>
           </div>
         </div>
       </div>
@@ -298,7 +297,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
           </div>
         </div>
         <div className="polaroid-footer">
-          <span className="photo-date">{formatDateLabel(dateKey)}</span>
+          <p className="photo-caption">Add a caption</p>
         </div>
       </div>
       {!isFuture && (
@@ -334,7 +333,7 @@ function PeekCard({ dateKey, photo }) {
           </div>
         )}
         <div className="polaroid-footer">
-          <span className="photo-date">{formatDateLabel(dateKey)}</span>
+          <p className="photo-caption">{photo?.caption || 'Add a caption'}</p>
         </div>
       </div>
     </div>
@@ -468,7 +467,7 @@ function DayCarousel({ dates, photos, onUpload, onView }) {
           <svg width="12" height="15" viewBox="0 0 14 18"><polygon points="14,0 0,9 14,18" fill="currentColor"/></svg>
         </button>
         <span className="carousel-indicator">
-          Day {getDayNumber(currentDate)} of {dates.length}
+          {formatDateLabel(currentDate)}
         </span>
         <button
           className="carousel-arrow"
@@ -558,7 +557,12 @@ export default function App() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const daysUntilSummit = Math.max(0, getDaysBetween(today, SUMMIT_DAY));
+  const startNoon = new Date(toDateKey(START_DATE) + 'T12:00:00');
+  const summitNoon = new Date(toDateKey(SUMMIT_DAY) + 'T12:00:00');
+  const todayNoon = new Date(toDateKey(today) + 'T12:00:00');
+  const totalTripDays = getDaysBetween(startNoon, summitNoon) + 1;
+  const elapsed = getDaysBetween(startNoon, todayNoon);
+  const daysUntilSummit = Math.max(0, totalTripDays - elapsed);
 
   // Load photos from IndexedDB
   useEffect(() => {
