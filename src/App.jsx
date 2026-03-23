@@ -761,9 +761,10 @@ export default function App() {
       const { data, error } = await supabase.from('photos').select('*');
       if (error) { console.error('Failed to load photos:', error); return; }
       const map = {};
+      const cacheBuster = Date.now();
       for (const entry of data) {
         const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(entry.image_path);
-        map[entry.date] = { url: publicUrl, caption: entry.caption || '', notes: entry.notes || '', dateKey: entry.date };
+        map[entry.date] = { url: `${publicUrl}?t=${cacheBuster}`, caption: entry.caption || '', notes: entry.notes || '', dateKey: entry.date };
       }
       setPhotos(map);
     }
