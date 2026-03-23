@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from './supabase';
 import './App.css';
 
-const UPLOAD_PIN = '1414';
 const VIEW_PIN = '1414';
 
 // ── Strip EXIF by re-drawing image on canvas ───────────────
@@ -187,12 +186,6 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const pin = window.prompt('Enter upload PIN:');
-    if (pin !== UPLOAD_PIN) {
-      window.alert('Incorrect PIN');
-      e.target.value = '';
-      return;
-    }
     // If replacing an existing photo, skip caption prompt — keep existing caption
     if (photo) {
       onUpload(dateKey, file, photo.caption || '', photo.notes || '');
