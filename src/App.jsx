@@ -655,27 +655,36 @@ function WeeklyAccordion({ dates, photos, onView }) {
                   const isFuture = dateKey > today;
                   const isPast = dateKey < today;
                   const dayNum = getDayNumber(dateKey);
+                  const rotation = getRotation(dateKey);
+                  const tapeClass = getTapeStyle(dateKey);
+                  const tapeColor = getTapeColor(dateKey);
 
                   return (
                     <div
                       key={dateKey}
-                      className={`week-thumb ${photo ? 'filled' : ''} ${isFuture ? 'future' : ''} ${isPast && !photo ? 'missed' : ''}`}
+                      className={`week-polaroid ${tapeClass} ${photo ? 'filled' : ''} ${isFuture ? 'future' : ''} ${isPast && !photo ? 'missed' : ''}`}
+                      style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
                       onClick={() => photo && onView({ ...photo, dateKey })}
                     >
-                      {photo ? (
-                        <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
-                      ) : (
-                        <div className="week-thumb-empty">
-                          {isFuture ? (
-                            <span className="week-thumb-day">{dayNum}</span>
-                          ) : (
-                            <span style={{ fontSize: '1.2rem' }}>😢</span>
-                          )}
+                      <div className="week-polaroid-inner">
+                        {photo ? (
+                          <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
+                        ) : (
+                          <div className="week-polaroid-empty">
+                            {isFuture ? (
+                              <span className="week-polaroid-day">Day {dayNum}</span>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: '1.1rem' }}>😢</span>
+                                <span className="week-polaroid-day" style={{ fontSize: '0.6rem' }}>Missed</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        <div className="week-polaroid-footer">
+                          <span>{new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                         </div>
-                      )}
-                      <span className="week-thumb-date">
-                        {new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
-                      </span>
+                      </div>
                     </div>
                   );
                 })}
