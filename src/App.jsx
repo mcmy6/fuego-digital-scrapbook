@@ -779,7 +779,9 @@ export default function App() {
     if (dbError) { console.error('DB insert failed:', dbError); return; }
 
     const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
-    setPhotos((prev) => ({ ...prev, [dateKey]: { url: publicUrl, caption, notes, dateKey } }));
+    // Add cache-buster so browser doesn't show stale image after replacement
+    const freshUrl = `${publicUrl}?t=${Date.now()}`;
+    setPhotos((prev) => ({ ...prev, [dateKey]: { url: freshUrl, caption, notes, dateKey } }));
   };
 
   const handleUpdateCaption = async (dateKey, caption) => {
