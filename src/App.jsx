@@ -168,7 +168,7 @@ function MountainTrail({ progress, filled, total, daysUntilSummit }) {
 }
 
 // ── Photo Slot ─────────────────────────────────────────────
-function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
+function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption, onCloseViewer }) {
   const today = toDateKey(new Date());
   const isFuture = dateKey > today;
   const dayNum = getDayNumber(dateKey);
@@ -182,10 +182,14 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
   const [editCaptionValue, setEditCaptionValue] = useState('');
   const captionInputRef = useRef(null);
   const pendingFile = useRef(null);
+  const replacingRef = useRef(false);
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
+    replacingRef.current = false;
     if (!file) return;
+    // Close fullscreen if it's open
+    onCloseViewer();
     // If replacing an existing photo, skip caption prompt — keep existing caption
     if (photo) {
       onUpload(dateKey, file, photo.caption || '', photo.notes || '');
@@ -220,6 +224,7 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
     const handleReplace = (e) => {
       e.stopPropagation();
       e.preventDefault();
+      replacingRef.current = true;
       fileInputRef.current?.click();
     };
     const handleCaptionTap = (e) => {
@@ -239,8 +244,8 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
     };
     return (
       <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
-        onClick={() => !editingCaption && onView({ ...photo, dateKey })} role="button" tabIndex={0}
-        onKeyDown={(e) => !editingCaption && e.key === 'Enter' && onView({ ...photo, dateKey })}>
+        onClick={() => !editingCaption && !replacingRef.current && onView({ ...photo, dateKey })} role="button" tabIndex={0}
+        onKeyDown={(e) => !editingCaption && !replacingRef.current && e.key === 'Enter' && onView({ ...photo, dateKey })}>
         <div className="polaroid">
           <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
           <div className="polaroid-footer" onClick={isToday && !editingCaption ? handleCaptionTap : undefined}>
@@ -386,7 +391,7 @@ function PeekCard({ dateKey, photo }) {
 }
 
 // ── Day Carousel ───────────────────────────────────────────
-function DayCarousel({ dates, photos, onUpload, onView, onUpdateCaption }) {
+function DayCarousel({ dates, photos, onUpload, onView, onUpdateCaption, onCloseViewer }) {
   // Chronological order — left is past, right is future
   const today = toDateKey(new Date());
   const initialIndex = useMemo(() => {
@@ -491,7 +496,7 @@ function DayCarousel({ dates, photos, onUpload, onView, onUpdateCaption }) {
           <div className="carousel-slide-active">
             <PhotoSlot dateKey={currentDate}
               photo={photos[currentDate] || null}
-              onUpload={onUpload} onView={onView} onUpdateCaption={onUpdateCaption} />
+              onUpload={onUpload} onView={onView} onUpdateCaption={onUpdateCaption} onCloseViewer={onCloseViewer} />
           </div>
 
           {/* Right peek */}
@@ -803,7 +808,7 @@ export default function App() {
 
         <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
 
-        <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} onUpdateCaption={handleUpdateCaption} />
+        <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} onUpdateCaption={handleUpdateCaption} onCloseViewer={() => setViewerPhoto(null)} />
 
         <WeeklyAccordion dates={allDates} photos={photos} onView={setViewerPhoto} />
 
