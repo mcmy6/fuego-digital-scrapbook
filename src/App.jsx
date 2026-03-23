@@ -25,9 +25,10 @@ function stripExif(file) {
 }
 
 // ── Constants ──────────────────────────────────────────────
-const SUMMIT_DAY = new Date('2026-04-14');
-const TRIP_END = new Date('2026-04-14');
-const START_DATE = new Date('2026-03-21');
+// Use noon to avoid UTC midnight → EST rollback issues
+const SUMMIT_DAY = new Date('2026-04-14T12:00:00');
+const TRIP_END = new Date('2026-04-14T12:00:00');
+const START_DATE = new Date('2026-03-21T12:00:00');
 
 const ITINERARY = [
   { date: 'April 12', label: 'Travel day' },
@@ -68,10 +69,16 @@ function getDaysBetween(a, b) {
 
 function getAllDates() {
   const dates = [];
-  const cur = new Date(START_DATE);
-  const end = new Date(TRIP_END);
+  const startKey = toDateKey(START_DATE);
+  const endKey = toDateKey(TRIP_END);
+  // Generate dates from string keys to avoid timezone drift
+  const cur = new Date(startKey + 'T12:00:00');
+  const end = new Date(endKey + 'T12:00:00');
   while (cur <= end) {
-    dates.push(toDateKey(cur));
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -161,30 +168,6 @@ function MountainTrail({ progress, filled, total, daysUntilSummit }) {
   );
 }
 
-// ── Popup Modal ────────────────────────────────────────────
-function PopupModal({ title, value, onChange, onSave, onClose, maxLength = 100, placeholder = '' }) {
-  return (
-    <div className="popup-overlay" onClick={onClose}>
-      <div className="popup-card" onClick={(e) => e.stopPropagation()}>
-        <p className="popup-title">{title}</p>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          maxLength={maxLength}
-          placeholder={placeholder}
-          className="popup-textarea"
-          autoFocus
-          rows={3}
-        />
-        <div className="popup-buttons">
-          <button onClick={onClose} className="btn-skip">Cancel</button>
-          <button onClick={onSave} className="btn-save">Save</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Photo Slot ─────────────────────────────────────────────
 function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
   const today = toDateKey(new Date());
@@ -195,10 +178,10 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
   const tapeColor = getTapeColor(dateKey);
   const fileInputRef = useRef(null);
   const [captionInput, setCaptionInput] = useState('');
-  const [notesInput, setNotesInput] = useState('');
-  const [promptStep, setPromptStep] = useState(null); // null | 'caption' | 'notes'
+  const [promptStep, setPromptStep] = useState(null); // null | 'caption'
   const [editingCaption, setEditingCaption] = useState(false);
   const [editCaptionValue, setEditCaptionValue] = useState('');
+  const captionInputRef = useRef(null);
   const pendingFile = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -214,31 +197,20 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
     setPromptStep('caption');
   };
 
-  const handleCaptionNext = () => {
-    setPromptStep('notes');
-  };
-
-  const handleSkipCaption = () => {
-    setCaptionInput('');
-    setPromptStep('notes');
-  };
-
   const handleSave = () => {
-    if (pendingFile.current) {
-      onUpload(dateKey, pendingFile.current, captionInput.trim(), notesInput.trim());
-      pendingFile.current = null;
-      setCaptionInput('');
-      setNotesInput('');
-      setPromptStep(null);
-    }
-  };
-
-  const handleSkipNotes = () => {
     if (pendingFile.current) {
       onUpload(dateKey, pendingFile.current, captionInput.trim(), '');
       pendingFile.current = null;
       setCaptionInput('');
-      setNotesInput('');
+      setPromptStep(null);
+    }
+  };
+
+  const handleSkipCaption = () => {
+    if (pendingFile.current) {
+      onUpload(dateKey, pendingFile.current, '', '');
+      pendingFile.current = null;
+      setCaptionInput('');
       setPromptStep(null);
     }
   };
@@ -255,19 +227,40 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
       if (!isToday) return;
       setEditCaptionValue(photo.caption || '');
       setEditingCaption(true);
+      setTimeout(() => captionInputRef.current?.focus(), 50);
     };
-    const handleSaveCaption = () => {
+    const handleSaveCaption = (e) => {
+      e?.stopPropagation();
       onUpdateCaption(dateKey, editCaptionValue.trim());
       setEditingCaption(false);
     };
+    const handleCaptionKeyDown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); handleSaveCaption(e); }
+    };
     return (
       <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
-        onClick={() => onView({ ...photo, dateKey })} role="button" tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onView({ ...photo, dateKey })}>
+        onClick={() => !editingCaption && onView({ ...photo, dateKey })} role="button" tabIndex={0}
+        onKeyDown={(e) => !editingCaption && e.key === 'Enter' && onView({ ...photo, dateKey })}>
         <div className="polaroid">
           <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
-          <div className="polaroid-footer" onClick={isToday ? handleCaptionTap : undefined}>
-            <p className={`photo-caption ${isToday ? 'tappable' : ''}`}>{photo.caption || 'Add a caption'}</p>
+          <div className="polaroid-footer" onClick={isToday && !editingCaption ? handleCaptionTap : undefined}>
+            {editingCaption ? (
+              <div className="inline-caption-edit" onClick={(e) => e.stopPropagation()}>
+                <input
+                  ref={captionInputRef}
+                  type="text"
+                  value={editCaptionValue}
+                  onChange={(e) => setEditCaptionValue(e.target.value)}
+                  onKeyDown={handleCaptionKeyDown}
+                  onBlur={handleSaveCaption}
+                  maxLength={100}
+                  placeholder="What's the story?"
+                  className="inline-caption-input"
+                />
+              </div>
+            ) : (
+              <p className={`photo-caption ${isToday ? 'tappable' : ''}`}>{photo.caption || 'Add a caption'}</p>
+            )}
           </div>
           {isToday && (
             <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
@@ -282,22 +275,11 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
           <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
             onChange={handleFileSelect} hidden />
         )}
-        {editingCaption && (
-          <PopupModal
-            title="Edit caption"
-            value={editCaptionValue}
-            onChange={setEditCaptionValue}
-            onSave={handleSaveCaption}
-            onClose={() => setEditingCaption(false)}
-            maxLength={100}
-            placeholder="What's the story?"
-          />
-        )}
       </div>
     );
   }
 
-  // Caption prompt (step 1)
+  // Caption prompt after upload
   if (promptStep === 'caption') {
     return (
       <div className="photo-slot caption-prompt" style={{ '--rotation': '0deg' }}>
@@ -308,25 +290,6 @@ function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
             placeholder="What's the story?" className="caption-input" autoFocus />
           <div className="caption-buttons">
             <button onClick={handleSkipCaption} className="btn-skip">Skip</button>
-            <button onClick={handleCaptionNext} className="btn-save">Next</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Notes prompt (step 2)
-  if (promptStep === 'notes') {
-    return (
-      <div className="photo-slot caption-prompt" style={{ '--rotation': '0deg' }}>
-        <div className="caption-prompt-inner">
-          <p className="caption-prompt-title">Any notes? (optional)</p>
-          <textarea maxLength={150} value={notesInput}
-            onChange={(e) => setNotesInput(e.target.value)}
-            placeholder="Thoughts, feelings, details..."
-            className="caption-input notes-textarea" autoFocus rows={3} />
-          <div className="caption-buttons">
-            <button onClick={handleSkipNotes} className="btn-skip">Skip</button>
             <button onClick={handleSave} className="btn-save">Save</button>
           </div>
         </div>
@@ -573,8 +536,9 @@ function formatStickyDate(dateKey) {
 }
 
 function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
-  const [showNotesPopup, setShowNotesPopup] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [notesInput, setNotesInput] = useState('');
+  const textareaRef = useRef(null);
   const today = toDateKey(new Date());
   const isToday = photo?.dateKey === today;
 
@@ -582,14 +546,15 @@ function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
 
   const handleStickyTap = (e) => {
     e.stopPropagation();
-    if (!isToday) return;
+    if (!isToday || editing) return;
     setNotesInput(photo.notes || '');
-    setShowNotesPopup(true);
+    setEditing(true);
+    setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
   const handleSaveNotes = () => {
     onUpdateNotes(photo.dateKey, notesInput.trim());
-    setShowNotesPopup(false);
+    setEditing(false);
   };
 
   return (
@@ -598,29 +563,121 @@ function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
       <div className="fullscreen-content" onClick={(e) => e.stopPropagation()}>
         <div className="fullscreen-polaroid">
           <img src={photo.url} alt="Full view" className="fullscreen-img" />
-          {photo.caption && <p className="fullscreen-caption">{photo.caption}</p>}
+          <p className="fullscreen-caption">{photo.caption || 'Add a caption'}</p>
         </div>
-        <div className={`sticky-note ${isToday ? 'editable' : ''}`} onClick={isToday ? handleStickyTap : undefined}>
+        <div className={`sticky-note ${isToday ? 'editable' : ''}`} onClick={handleStickyTap}>
           <div className="sticky-tape" />
           <span className="sticky-date">{formatStickyDate(photo.dateKey)}</span>
-          <p className="sticky-text">
-            {photo.notes || (isToday ? 'Tap to add a note...' : '\u00A0')}
-          </p>
+          {editing ? (
+            <div className="sticky-edit" onClick={(e) => e.stopPropagation()}>
+              <textarea
+                ref={textareaRef}
+                value={notesInput}
+                onChange={(e) => setNotesInput(e.target.value)}
+                maxLength={150}
+                placeholder="Write a note..."
+                className="sticky-textarea"
+                rows={3}
+              />
+              <button className="sticky-save-btn" onClick={handleSaveNotes}>Save</button>
+            </div>
+          ) : (
+            <p className="sticky-text">
+              {photo.notes || (isToday ? 'Tap to add a note...' : '\u00A0')}
+            </p>
+          )}
           <div className="sticky-fold" />
         </div>
       </div>
-      {showNotesPopup && (
-        <PopupModal
-          title="Edit note"
-          value={notesInput}
-          onChange={setNotesInput}
-          onSave={handleSaveNotes}
-          onClose={() => setShowNotesPopup(false)}
-          maxLength={150}
-          placeholder="Write a note..."
-        />
-      )}
     </div>
+  );
+}
+
+// ── Weekly Accordion ────────────────────────────────────────
+function getWeeks(dates) {
+  const weeks = [];
+  for (let i = 0; i < dates.length; i += 7) {
+    const chunk = dates.slice(i, i + 7);
+    const weekNum = Math.floor(i / 7) + 1;
+    const startLabel = formatDateLabel(chunk[0]);
+    const endLabel = formatDateLabel(chunk[chunk.length - 1]);
+    weeks.push({ weekNum, dates: chunk, label: `${startLabel} – ${endLabel}` });
+  }
+  return weeks;
+}
+
+function WeeklyAccordion({ dates, photos, onView }) {
+  const today = toDateKey(new Date());
+  const weeks = useMemo(() => getWeeks(dates), [dates]);
+
+  // Find which week has today's date, default open that week
+  const currentWeekIdx = useMemo(() => {
+    return weeks.findIndex((w) => w.dates.some((d) => d >= today)) || 0;
+  }, [weeks, today]);
+
+  const [openWeek, setOpenWeek] = useState(currentWeekIdx);
+
+  const toggleWeek = (idx) => {
+    setOpenWeek(openWeek === idx ? -1 : idx);
+  };
+
+  return (
+    <section className="weekly-section">
+      <h2 className="weekly-title">Weekly Recap</h2>
+      {weeks.map((week, idx) => {
+        const isOpen = openWeek === idx;
+        const hasFutureOnly = week.dates.every((d) => d > today);
+        const filledInWeek = week.dates.filter((d) => photos[d]).length;
+
+        return (
+          <div key={week.weekNum} className={`week-accordion ${isOpen ? 'open' : ''} ${hasFutureOnly ? 'future-week' : ''}`}>
+            <button className="week-header" onClick={() => toggleWeek(idx)}>
+              <span className="week-label">
+                Week {week.weekNum}
+                <span className="week-range">{week.label}</span>
+              </span>
+              <span className="week-meta">
+                {filledInWeek > 0 && <span className="week-count">{filledInWeek} photo{filledInWeek !== 1 ? 's' : ''}</span>}
+                <span className={`week-chevron ${isOpen ? 'open' : ''}`}>▸</span>
+              </span>
+            </button>
+            {isOpen && (
+              <div className="week-grid">
+                {week.dates.map((dateKey) => {
+                  const photo = photos[dateKey];
+                  const isFuture = dateKey > today;
+                  const isPast = dateKey < today;
+                  const dayNum = getDayNumber(dateKey);
+
+                  return (
+                    <div
+                      key={dateKey}
+                      className={`week-thumb ${photo ? 'filled' : ''} ${isFuture ? 'future' : ''} ${isPast && !photo ? 'missed' : ''}`}
+                      onClick={() => photo && onView({ ...photo, dateKey })}
+                    >
+                      {photo ? (
+                        <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
+                      ) : (
+                        <div className="week-thumb-empty">
+                          {isFuture ? (
+                            <span className="week-thumb-day">{dayNum}</span>
+                          ) : (
+                            <span style={{ fontSize: '1.2rem' }}>😢</span>
+                          )}
+                        </div>
+                      )}
+                      <span className="week-thumb-date">
+                        {new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
   );
 }
 
@@ -743,6 +800,8 @@ export default function App() {
         <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
 
         <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} onUpdateCaption={handleUpdateCaption} />
+
+        <WeeklyAccordion dates={allDates} photos={photos} onView={setViewerPhoto} />
 
         <section className="itinerary">
           <h2 className="itinerary-title">Trip Itinerary</h2>
