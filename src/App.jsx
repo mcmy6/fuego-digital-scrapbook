@@ -54,7 +54,12 @@ const TAPE_COLORS = [
 
 // ── Helpers ────────────────────────────────────────────────
 function toDateKey(d) {
-  return d.toISOString().split('T')[0];
+  // Force Eastern Time so "today" flips at midnight EST, not UTC
+  const est = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const y = est.getFullYear();
+  const m = String(est.getMonth() + 1).padStart(2, '0');
+  const day = String(est.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getDaysBetween(a, b) {
@@ -156,8 +161,32 @@ function MountainTrail({ progress, filled, total, daysUntilSummit }) {
   );
 }
 
+// ── Popup Modal ────────────────────────────────────────────
+function PopupModal({ title, value, onChange, onSave, onClose, maxLength = 100, placeholder = '' }) {
+  return (
+    <div className="popup-overlay" onClick={onClose}>
+      <div className="popup-card" onClick={(e) => e.stopPropagation()}>
+        <p className="popup-title">{title}</p>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          className="popup-textarea"
+          autoFocus
+          rows={3}
+        />
+        <div className="popup-buttons">
+          <button onClick={onClose} className="btn-skip">Cancel</button>
+          <button onClick={onSave} className="btn-save">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Photo Slot ─────────────────────────────────────────────
-function PhotoSlot({ dateKey, photo, onUpload, onView }) {
+function PhotoSlot({ dateKey, photo, onUpload, onView, onUpdateCaption }) {
   const today = toDateKey(new Date());
   const isFuture = dateKey > today;
   const dayNum = getDayNumber(dateKey);
@@ -168,6 +197,8 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
   const [captionInput, setCaptionInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [promptStep, setPromptStep] = useState(null); // null | 'caption' | 'notes'
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [editCaptionValue, setEditCaptionValue] = useState('');
   const pendingFile = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -219,14 +250,24 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
       e.stopPropagation();
       fileInputRef.current?.click();
     };
+    const handleCaptionTap = (e) => {
+      e.stopPropagation();
+      if (!isToday) return;
+      setEditCaptionValue(photo.caption || '');
+      setEditingCaption(true);
+    };
+    const handleSaveCaption = () => {
+      onUpdateCaption(dateKey, editCaptionValue.trim());
+      setEditingCaption(false);
+    };
     return (
       <div className={`photo-slot filled ${tapeClass}`} style={{ '--rotation': `${rotation}deg`, '--tape-color': tapeColor }}
         onClick={() => onView({ ...photo, dateKey })} role="button" tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onView({ ...photo, dateKey })}>
         <div className="polaroid">
           <img src={photo.url} alt={`Day ${dayNum}`} loading="lazy" />
-          <div className="polaroid-footer">
-            <p className="photo-caption">{photo.caption || 'Add a caption'}</p>
+          <div className="polaroid-footer" onClick={isToday ? handleCaptionTap : undefined}>
+            <p className={`photo-caption ${isToday ? 'tappable' : ''}`}>{photo.caption || 'Add a caption'}</p>
           </div>
           {isToday && (
             <button className="replace-btn" onClick={handleReplace} aria-label="Replace photo">
@@ -240,6 +281,17 @@ function PhotoSlot({ dateKey, photo, onUpload, onView }) {
         {isToday && (
           <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
             onChange={handleFileSelect} hidden />
+        )}
+        {editingCaption && (
+          <PopupModal
+            title="Edit caption"
+            value={editCaptionValue}
+            onChange={setEditCaptionValue}
+            onSave={handleSaveCaption}
+            onClose={() => setEditingCaption(false)}
+            maxLength={100}
+            placeholder="What's the story?"
+          />
         )}
       </div>
     );
@@ -369,7 +421,7 @@ function PeekCard({ dateKey, photo }) {
 }
 
 // ── Day Carousel ───────────────────────────────────────────
-function DayCarousel({ dates, photos, onUpload, onView }) {
+function DayCarousel({ dates, photos, onUpload, onView, onUpdateCaption }) {
   // Chronological order — left is past, right is future
   const today = toDateKey(new Date());
   const initialIndex = useMemo(() => {
@@ -474,7 +526,7 @@ function DayCarousel({ dates, photos, onUpload, onView }) {
           <div className="carousel-slide-active">
             <PhotoSlot dateKey={currentDate}
               photo={photos[currentDate] || null}
-              onUpload={onUpload} onView={onView} />
+              onUpload={onUpload} onView={onView} onUpdateCaption={onUpdateCaption} />
           </div>
 
           {/* Right peek */}
@@ -521,22 +573,23 @@ function formatStickyDate(dateKey) {
 }
 
 function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
-  const [editing, setEditing] = useState(false);
+  const [showNotesPopup, setShowNotesPopup] = useState(false);
   const [notesInput, setNotesInput] = useState('');
   const today = toDateKey(new Date());
   const isToday = photo?.dateKey === today;
 
   if (!photo) return null;
 
-  const handleEditClick = (e) => {
+  const handleStickyTap = (e) => {
     e.stopPropagation();
+    if (!isToday) return;
     setNotesInput(photo.notes || '');
-    setEditing(true);
+    setShowNotesPopup(true);
   };
 
   const handleSaveNotes = () => {
     onUpdateNotes(photo.dateKey, notesInput.trim());
-    setEditing(false);
+    setShowNotesPopup(false);
   };
 
   return (
@@ -547,30 +600,26 @@ function FullscreenViewer({ photo, onClose, onUpdateNotes }) {
           <img src={photo.url} alt="Full view" className="fullscreen-img" />
           {photo.caption && <p className="fullscreen-caption">{photo.caption}</p>}
         </div>
-        <div className={`sticky-note ${isToday ? 'editable' : ''}`} onClick={isToday && !editing ? handleEditClick : undefined}>
+        <div className={`sticky-note ${isToday ? 'editable' : ''}`} onClick={isToday ? handleStickyTap : undefined}>
           <div className="sticky-tape" />
           <span className="sticky-date">{formatStickyDate(photo.dateKey)}</span>
-          {editing ? (
-            <div className="sticky-edit">
-              <textarea
-                value={notesInput}
-                onChange={(e) => setNotesInput(e.target.value)}
-                maxLength={150}
-                placeholder="Write a note..."
-                className="sticky-textarea"
-                autoFocus
-                rows={3}
-              />
-              <button className="sticky-save-btn" onClick={handleSaveNotes}>Save</button>
-            </div>
-          ) : (
-            <p className="sticky-text">
-              {photo.notes || (isToday ? 'Tap to add a note...' : '\u00A0')}
-            </p>
-          )}
+          <p className="sticky-text">
+            {photo.notes || (isToday ? 'Tap to add a note...' : '\u00A0')}
+          </p>
           <div className="sticky-fold" />
         </div>
       </div>
+      {showNotesPopup && (
+        <PopupModal
+          title="Edit note"
+          value={notesInput}
+          onChange={setNotesInput}
+          onSave={handleSaveNotes}
+          onClose={() => setShowNotesPopup(false)}
+          maxLength={150}
+          placeholder="Write a note..."
+        />
+      )}
     </div>
   );
 }
@@ -667,6 +716,14 @@ export default function App() {
     setPhotos((prev) => ({ ...prev, [dateKey]: { url: publicUrl, caption, notes, dateKey } }));
   };
 
+  const handleUpdateCaption = async (dateKey, caption) => {
+    const existing = photos[dateKey];
+    if (!existing) return;
+    const { error } = await supabase.from('photos').update({ caption }).eq('date', dateKey);
+    if (error) { console.error('Update caption failed:', error); return; }
+    setPhotos((prev) => ({ ...prev, [dateKey]: { ...prev[dateKey], caption } }));
+  };
+
   const handleUpdateNotes = async (dateKey, notes) => {
     const existing = photos[dateKey];
     if (!existing) return;
@@ -685,7 +742,7 @@ export default function App() {
 
         <MountainTrail progress={progress} filled={filledCount} total={totalDays} daysUntilSummit={daysUntilSummit} />
 
-        <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} />
+        <DayCarousel dates={allDates} photos={photos} onUpload={handleUpload} onView={setViewerPhoto} onUpdateCaption={handleUpdateCaption} />
 
         <section className="itinerary">
           <h2 className="itinerary-title">Trip Itinerary</h2>

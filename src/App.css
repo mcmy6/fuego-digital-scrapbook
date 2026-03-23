@@ -950,4 +950,84 @@ body {
   .photo-slot.caption-prompt {
     border-color: rgba(216, 144, 80, 0.3);
   }
+
+  .popup-card {
+    background: #3a3020;
+    border-color: rgba(216, 144, 80, 0.3);
+  }
+
+  .popup-textarea {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--parchment);
+  }
+}
+
+/* ── Popup Modal ─────────────────────────────────────────── */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.popup-card {
+  background: var(--parchment);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  animation: popupIn 0.2s ease;
+}
+
+@keyframes popupIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.popup-title {
+  font-family: 'Caveat', cursive;
+  font-size: 1.4rem;
+  color: var(--volcanic-black);
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.popup-textarea {
+  width: 100%;
+  border: 1.5px solid var(--warm-light);
+  border-radius: 10px;
+  padding: 12px;
+  font-family: 'Caveat', cursive;
+  font-size: 1.1rem;
+  resize: none;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--volcanic-black);
+  box-sizing: border-box;
+}
+
+.popup-textarea:focus {
+  outline: none;
+  border-color: var(--terracotta);
+}
+
+.popup-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.photo-caption.tappable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--warm-light);
 }
